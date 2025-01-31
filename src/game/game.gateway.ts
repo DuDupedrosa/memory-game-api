@@ -306,4 +306,23 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.emit('error', { message: 'Room not found' });
     }
   }
+
+  @SubscribeMessage('requestGameWin')
+  async handleRequestGameWin(
+    client: Socket,
+    data: { roomId: string; winnerPlayerId: string },
+  ) {
+    const room = this.rooms[data.roomId];
+
+    if (room) {
+      // garantir de limpar a tabela score.
+
+      this.server.to(data.roomId).emit('gameWin', {
+        roomId: data.roomId,
+        winnerPlayerId: data.winnerPlayerId,
+      });
+    } else {
+      client.emit('error', { message: 'Room not found' });
+    }
+  }
 }
