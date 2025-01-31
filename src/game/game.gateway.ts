@@ -33,7 +33,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('joinRoom')
-  handleJoinRoom(
+  async handleJoinRoom(
     client: Socket,
     joinData: { roomId: string; password: string; playerId: string },
   ) {
@@ -52,14 +52,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       };
       //room.players.push(client.id);
       client.join(joinData.roomId);
-
-      this.server.to(joinData.roomId).emit('playerJoined', {
-        playerId: joinData.playerId,
-        roomId: joinData.roomId,
-      });
     } else {
-      client.emit('error', { message: 'Room not found' });
+      const dbRoom = await this.prismaService.room.findFirst({
+        where: { id: Number(joinData.roomId) },
+      });
+
+      this.rooms[joinData.roomId] = {
+        owner: dbRoom.ownerId,
+        players: [joinData.playerId],
+      };
+      client.join(joinData.roomId);
     }
+
+    this.server.to(joinData.roomId).emit('playerJoined', {
+      playerId: joinData.playerId,
+      roomId: joinData.roomId,
+    });
   }
 
   @SubscribeMessage('requestStartGame')
