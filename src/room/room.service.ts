@@ -112,6 +112,15 @@ export class RoomService {
         });
       }
 
+      // sempre limpa a array score associada a sala.
+      const clearScore = await this.clearScoreTableOnSing(room.id);
+
+      if (!clearScore) {
+        return res
+          .status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .json({ message: 'InternalServerErro|signIn|clearScoreTableOnSing' });
+      }
+
       return res.status(HttpStatus.OK).json({ content: response });
     } catch (err) {
       return res
@@ -211,6 +220,24 @@ export class RoomService {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         message: `InternalServerErro|getPlayerReleasedToPlayAsync|Erro:${err}`,
       });
+    }
+  }
+
+  async clearScoreTableOnSing(roomId: number) {
+    try {
+      const score = await this.prismaService.score.findFirst({
+        where: { roomId },
+      });
+
+      if (score) {
+        await this.prismaService.score.deleteMany({
+          where: { id: score.roomId },
+        });
+      }
+
+      return true;
+    } catch (err) {
+      return false;
     }
   }
 }
