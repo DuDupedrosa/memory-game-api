@@ -31,7 +31,7 @@ export class RoomService {
       if (!user) {
         return res
           .status(HttpStatus.NOT_FOUND)
-          .json({ message: 'not_found_owner_id' });
+          .json({ message: 'not_found_user' });
       }
 
       const hashPassword = await bcrypt.hash(
