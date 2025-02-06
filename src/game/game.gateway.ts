@@ -39,6 +39,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     joinData: { roomId: string; password: string; playerId: string },
   ) {
     const room = this.rooms[joinData.roomId];
+
     if (room) {
       // Associando o client.id ao ID do jogador
       //this.players[client.id] = joinData.playerId; // Armazena a relação client.id -> playerId
@@ -222,53 +223,53 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage('requestUserLoggedOutCleanData')
-  async handleRequestUserLoggedOutCleanData(
-    client: Socket,
-    data: { roomId: string; playerId: string },
-  ) {
-    const room = this.rooms[data.roomId];
-    if (room) {
-      const roomIdToNumber = Number(data.roomId);
-      const dbRoom = await this.prismaService.room.findUnique({
-        where: { id: roomIdToNumber },
-      });
+  // @SubscribeMessage('requestUserLoggedOutCleanData')
+  // async handleRequestUserLoggedOutCleanData(
+  //   client: Socket,
+  //   data: { roomId: string; playerId: string },
+  // ) {
+  //   const room = this.rooms[data.roomId];
+  //   if (room) {
+  //     const roomIdToNumber = Number(data.roomId);
+  //     const dbRoom = await this.prismaService.room.findUnique({
+  //       where: { id: roomIdToNumber },
+  //     });
 
-      let removePlayerFromPlayers = [];
-      // o dono sala sempre permanece na array players
-      // forçando sempre o segundo jogador a entrar e voltando a tabela para o default
-      // visitante
-      if (dbRoom.ownerId !== data.playerId) {
-        removePlayerFromPlayers = dbRoom.players.filter(
-          (player) => player !== data.playerId,
-        );
-      } else {
-        // dono da sala
-        removePlayerFromPlayers = dbRoom.players.filter(
-          (player) => player === data.playerId,
-        );
-      }
+  //     let removePlayerFromPlayers = [];
+  //     // o dono sala sempre permanece na array players
+  //     // forçando sempre o segundo jogador a entrar e voltando a tabela para o default
+  //     // visitante
+  //     if (dbRoom.ownerId !== data.playerId) {
+  //       removePlayerFromPlayers = dbRoom.players.filter(
+  //         (player) => player !== data.playerId,
+  //       );
+  //     } else {
+  //       // dono da sala
+  //       removePlayerFromPlayers = dbRoom.players.filter(
+  //         (player) => player === data.playerId,
+  //       );
+  //     }
 
-      await this.prismaService.room.update({
-        where: { id: dbRoom.id },
-        data: {
-          guestId: null,
-          players: removePlayerFromPlayers,
-          playerReleasedToPlay: dbRoom.ownerId,
-        },
-      });
+  //     await this.prismaService.room.update({
+  //       where: { id: dbRoom.id },
+  //       data: {
+  //         guestId: null,
+  //         players: removePlayerFromPlayers,
+  //         playerReleasedToPlay: dbRoom.ownerId,
+  //       },
+  //     });
 
-      const score = await this.prismaService.score.findFirst({
-        where: { roomId: dbRoom.id },
-      });
+  //     const score = await this.prismaService.score.findFirst({
+  //       where: { roomId: dbRoom.id },
+  //     });
 
-      if (score) {
-        await this.prismaService.score.delete({ where: { id: score.id } });
-      }
-    } else {
-      client.emit('error', { message: 'Room not found' });
-    }
-  }
+  //     if (score) {
+  //       await this.prismaService.score.delete({ where: { id: score.id } });
+  //     }
+  //   } else {
+  //     client.emit('error', { message: 'Room not found' });
+  //   }
+  // }
 
   @SubscribeMessage('requestUserLoggedOut')
   async handleRequestUserLoggedOut(
@@ -303,12 +304,17 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = this.rooms[data.roomId];
 
     if (room) {
-      // garantir de limpar a tabela score.
+      const roomIdToNumber = Number(data.roomId);
 
-      this.server.to(data.roomId).emit('gameWin', {
-        roomId: data.roomId,
-        winnerPlayerId: data.winnerPlayerId,
-      });
+      // garantir de limpar a tabela score.
+      const trigger = await this.triggerWinGame(roomIdToNumber);
+
+      if (trigger) {
+        this.server.to(data.roomId).emit('gameWin', {
+          roomId: data.roomId,
+          winnerPlayerId: data.winnerPlayerId,
+        });
+      }
     } else {
       client.emit('error', { message: 'Room not found' });
     }
@@ -340,6 +346,60 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('requestReadyToPlay')
+  async handleReadyToPlay(client: Socket, data: { roomId: string }) {
+    const room = this.rooms[data.roomId];
+
+    if (room) {
+      const roomIdToNumber = Number(data.roomId);
+      const dbRoom = await this.prismaService.room.findUnique({
+        where: { id: roomIdToNumber },
+      });
+
+      if (dbRoom) {
+        await this.prismaService.room.update({
+          where: { id: roomIdToNumber },
+          data: { playerTwoIsReadyToPlay: true },
+        });
+
+        this.server.to(data.roomId).emit('readyToPlay', {
+          ownerId: dbRoom.ownerId,
+        });
+      }
+    } else {
+      client.emit('error', { message: 'Room not found' });
+    }
+  }
+
+  async triggerWinGame(roomId: number) {
+    try {
+      const dbRoom = await this.prismaService.room.findUnique({
+        where: { id: roomId },
+      });
+
+      if (dbRoom) {
+        await this.prismaService.room.update({
+          where: { id: roomId },
+          data: { playerTwoIsReadyToPlay: false },
+        });
+      }
+
+      const score = await this.prismaService.score.findFirst({
+        where: { roomId: dbRoom.id },
+      });
+
+      if (score) {
+        await this.prismaService.score.deleteMany({
+          where: { roomId: dbRoom.id },
+        });
+      }
+
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
   // helpers
   async triggerUserExitGame(roomId: number, playerId: string) {
     try {
@@ -354,6 +414,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           guestId: null,
           players: [dbRoom.ownerId],
           playerReleasedToPlay: dbRoom.ownerId,
+          playerTwoIsReadyToPlay: false,
         },
       });
 

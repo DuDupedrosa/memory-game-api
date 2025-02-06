@@ -108,17 +108,23 @@ export class RoomService {
 
         await this.prismaService.room.update({
           where: { id: room.id },
-          data: { guestId: userId, players: players },
+          data: {
+            guestId: userId,
+            players: players,
+            playerTwoIsReadyToPlay: false,
+          },
         });
       }
 
       // sempre limpa a array score associada a sala.
-      const clearScore = await this.clearScoreTableOnSing(room.id);
+      const clearScore = await this.clearScoreTableOnSignIn(room.id);
 
       if (!clearScore) {
         return res
           .status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .json({ message: 'InternalServerErro|signIn|clearScoreTableOnSing' });
+          .json({
+            message: 'InternalServerErro|signIn|clearScoreTableOnSignIn',
+          });
       }
 
       return res.status(HttpStatus.OK).json({ content: response });
@@ -223,7 +229,7 @@ export class RoomService {
     }
   }
 
-  async clearScoreTableOnSing(roomId: number) {
+  async clearScoreTableOnSignIn(roomId: number) {
     try {
       const score = await this.prismaService.score.findFirst({
         where: { roomId },
