@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -14,6 +15,7 @@ import { CreateNewRoomDto } from './dto/createNewRoomDto';
 import { RequestWithUser } from 'src/types/request';
 import { SignInRoomDto } from './dto/signInRoomDto';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
+import { ChangedPlayerAllowedToPlayDto } from './dto/changedPlayerAllowedToPlayDto';
 
 @Controller('room')
 export class RoomController {
@@ -70,6 +72,19 @@ export class RoomController {
       response,
       id,
       requestWithUser.user.userId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('changed-player-allowed-to-play')
+  async changePlayerAllowedToPlay(
+    @Res() response: Response,
+    @Body() dto: ChangedPlayerAllowedToPlayDto,
+    @Req() requestWithUser: RequestWithUser,
+  ) {
+    return await this.roomService.changePlayerAllowedToPlayAsync(
+      response,
+      dto.roomId,
     );
   }
 }

@@ -129,7 +129,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('requestChangePlayerTurn')
   async handleRequestChangePlayerTurn(
     client: Socket,
-    changePlayerData: { roomId: string },
+    changePlayerData: { roomId: string; playerId: string },
   ) {
     const room = this.rooms[changePlayerData.roomId];
     if (room) {
@@ -148,10 +148,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (!otherPlayer)
         return client.emit('error', { message: 'otherPlayer not found' });
 
-      await this.prismaService.room.update({
-        where: { id: roomIdToNumber },
-        data: { playerReleasedToPlay: otherPlayer },
-      });
+      if (changePlayerData.playerId === dbRoom.playerReleasedToPlay) {
+        await this.prismaService.room.update({
+          where: { id: roomIdToNumber },
+          data: { playerReleasedToPlay: otherPlayer },
+        });
+      }
 
       this.server.to(changePlayerData.roomId).emit('changedPlayerTurn', {
         roomId: changePlayerData.roomId,
@@ -170,106 +172,91 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = this.rooms[requestMakePointData.roomId];
     if (room) {
       const roomToNumber = Number(requestMakePointData.roomId);
-      const dbScore = await this.prismaService.score.findFirst({
-        where: {
-          AND: [
-            { playerId: requestMakePointData.playerId },
-            { roomId: roomToNumber },
-          ],
-        },
+      const dbRoom = await this.prismaService.room.findUnique({
+        where: { id: roomToNumber },
       });
 
-      if (!dbScore) {
-        await this.prismaService.score.create({
-          data: {
-            playerId: requestMakePointData.playerId,
-            roomId: roomToNumber,
-            value: 1,
+      // só faz a lógica de marcar o ponto se o jogador que chamou o evento for oq está jogando
+      if (dbRoom.playerReleasedToPlay === requestMakePointData.playerId) {
+        const dbScore = await this.prismaService.score.findFirst({
+          where: {
+            AND: [
+              { playerId: requestMakePointData.playerId },
+              { roomId: roomToNumber },
+            ],
           },
         });
+        const enemyPlayerId = dbRoom.players.find(
+          (player) => player !== requestMakePointData.playerId,
+        );
+        const dbScorePlayerEnemy = enemyPlayerId
+          ? await this.prismaService.score.findFirst({
+              where: {
+                AND: [{ playerId: enemyPlayerId }, { roomId: roomToNumber }],
+              },
+            })
+          : '';
 
-        this.server.to(requestMakePointData.roomId).emit('markedPoint', {
-          roomId: requestMakePointData.roomId,
-          playerId: requestMakePointData.playerId,
-          value: 1,
-        });
-      } else {
-        const updatedValue = dbScore.value + 1;
-        const winGame = updatedValue === 3;
+        if (!dbScore) {
+          await this.prismaService.score.create({
+            data: {
+              playerId: requestMakePointData.playerId,
+              roomId: roomToNumber,
+              value: 1,
+            },
+          });
 
-        // ganhou, vamos limpar a array score para não dar erro.
-        if (winGame) {
-          await this.prismaService.score.deleteMany({
-            where: { roomId: roomToNumber },
+          this.server.to(requestMakePointData.roomId).emit('markedPoint', {
+            roomId: requestMakePointData.roomId,
+            scores: [
+              {
+                playerId: requestMakePointData.playerId,
+                value: 1,
+              },
+              {
+                playerId: enemyPlayerId,
+                value: dbScorePlayerEnemy ? dbScorePlayerEnemy.value : 0,
+              },
+            ],
+          });
+        } else {
+          const updatedValue = dbScore.value + 1;
+          const winGame = updatedValue === 3;
+
+          // ganhou, vamos limpar a array score para não dar erro.
+          if (winGame) {
+            await this.prismaService.score.deleteMany({
+              where: { roomId: roomToNumber },
+            });
+          }
+
+          // se não, coloca o valor novo na tabela.
+          if (!winGame) {
+            await this.prismaService.score.update({
+              where: { id: dbScore.id },
+              data: { value: updatedValue },
+            });
+          }
+
+          this.server.to(requestMakePointData.roomId).emit('markedPoint', {
+            roomId: requestMakePointData.roomId,
+            scores: [
+              {
+                playerId: requestMakePointData.playerId,
+                value: updatedValue,
+              },
+              {
+                playerId: enemyPlayerId,
+                value: dbScorePlayerEnemy ? dbScorePlayerEnemy.value : 0,
+              },
+            ],
           });
         }
-
-        // se não, coloca o valor novo na tabela.
-        if (!winGame) {
-          await this.prismaService.score.update({
-            where: { id: dbScore.id },
-            data: { value: updatedValue },
-          });
-        }
-
-        this.server.to(requestMakePointData.roomId).emit('markedPoint', {
-          roomId: requestMakePointData.roomId,
-          playerId: requestMakePointData.playerId,
-          value: updatedValue,
-        });
       }
     } else {
       client.emit('error', { message: 'Room not found' });
     }
   }
-
-  // @SubscribeMessage('requestUserLoggedOutCleanData')
-  // async handleRequestUserLoggedOutCleanData(
-  //   client: Socket,
-  //   data: { roomId: string; playerId: string },
-  // ) {
-  //   const room = this.rooms[data.roomId];
-  //   if (room) {
-  //     const roomIdToNumber = Number(data.roomId);
-  //     const dbRoom = await this.prismaService.room.findUnique({
-  //       where: { id: roomIdToNumber },
-  //     });
-
-  //     let removePlayerFromPlayers = [];
-  //     // o dono sala sempre permanece na array players
-  //     // forçando sempre o segundo jogador a entrar e voltando a tabela para o default
-  //     // visitante
-  //     if (dbRoom.ownerId !== data.playerId) {
-  //       removePlayerFromPlayers = dbRoom.players.filter(
-  //         (player) => player !== data.playerId,
-  //       );
-  //     } else {
-  //       // dono da sala
-  //       removePlayerFromPlayers = dbRoom.players.filter(
-  //         (player) => player === data.playerId,
-  //       );
-  //     }
-
-  //     await this.prismaService.room.update({
-  //       where: { id: dbRoom.id },
-  //       data: {
-  //         guestId: null,
-  //         players: removePlayerFromPlayers,
-  //         playerReleasedToPlay: dbRoom.ownerId,
-  //       },
-  //     });
-
-  //     const score = await this.prismaService.score.findFirst({
-  //       where: { roomId: dbRoom.id },
-  //     });
-
-  //     if (score) {
-  //       await this.prismaService.score.delete({ where: { id: score.id } });
-  //     }
-  //   } else {
-  //     client.emit('error', { message: 'Room not found' });
-  //   }
-  // }
 
   @SubscribeMessage('requestUserLoggedOut')
   async handleRequestUserLoggedOut(

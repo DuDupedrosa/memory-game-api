@@ -120,11 +120,9 @@ export class RoomService {
       const clearScore = await this.clearScoreTableOnSignIn(room.id);
 
       if (!clearScore) {
-        return res
-          .status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .json({
-            message: 'InternalServerErro|signIn|clearScoreTableOnSignIn',
-          });
+        return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          message: 'InternalServerErro|signIn|clearScoreTableOnSignIn',
+        });
       }
 
       return res.status(HttpStatus.OK).json({ content: response });
@@ -244,6 +242,37 @@ export class RoomService {
       return true;
     } catch (err) {
       return false;
+    }
+  }
+
+  async changePlayerAllowedToPlayAsync(res: Response, roomId: number) {
+    try {
+      const room = await this.prismaService.room.findUnique({
+        where: { id: roomId },
+      });
+
+      if (!room) {
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'not_found_room' });
+      }
+
+      const otherPlayer = room.players.find(
+        (player) => player !== room.playerReleasedToPlay,
+      );
+
+      const updatedRoom = await this.prismaService.room.update({
+        where: { id: room.id },
+        data: { playerReleasedToPlay: otherPlayer },
+      });
+
+      return res
+        .status(HttpStatus.OK)
+        .json({ content: updatedRoom.playerReleasedToPlay });
+    } catch (err) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: `InternalServerErro|changePlayerAllowedToPlay|Erro:${err}`,
+      });
     }
   }
 }
