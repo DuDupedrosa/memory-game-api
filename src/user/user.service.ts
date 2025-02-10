@@ -93,6 +93,12 @@ export class UserService {
       });
 
       let { password, ...userData }: UserType = user;
+
+      await this.prismaService.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() },
+      });
+
       let response: { user: UserDataType; token: string } = {
         user: userData,
         token: token.access_token,
