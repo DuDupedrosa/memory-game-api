@@ -50,7 +50,7 @@ export class RoomController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get(':id')
+  @Get('data/:id')
   async getById(@Res() response: Response, @Param('id') id: number) {
     return await this.roomService.getByIdAsync(response, Number(id));
   }
@@ -85,6 +85,18 @@ export class RoomController {
     return await this.roomService.changePlayerAllowedToPlayAsync(
       response,
       dto.roomId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('owner-access-recent')
+  async getRecentRoomsIdByOwnerId(
+    @Res() response: Response,
+    @Req() requestWithUser: RequestWithUser,
+  ) {
+    return await this.roomService.getRecentRoomsIdByOwnerIdAsync(
+      response,
+      requestWithUser.user.userId,
     );
   }
 }

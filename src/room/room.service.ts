@@ -275,4 +275,31 @@ export class RoomService {
       });
     }
   }
+
+  async getRecentRoomsIdByOwnerIdAsync(res: Response, ownerId: string) {
+    try {
+      const user = await this.prismaService.user.findUnique({
+        where: { id: ownerId },
+      });
+
+      if (!user) {
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'not_found_user' });
+      }
+
+      const rooms = await this.prismaService.room.findMany({
+        where: { ownerId: ownerId },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+      });
+      const ids = rooms.map((room) => room.id);
+
+      return res.status(HttpStatus.OK).json({ content: ids });
+    } catch (err) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: `InternalServerErro|getRecentRoomsByUserIdAsync|Erro:${err}`,
+      });
+    }
+  }
 }
