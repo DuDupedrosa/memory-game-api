@@ -6,8 +6,8 @@ import {
   SubscribeMessage,
 } from '@nestjs/websockets';
 import { randomInt } from 'crypto';
-import { access } from 'fs';
 import { Server, Socket } from 'socket.io';
+import { getVictoryPointByRoomLevel } from 'src/helpers/methods/getVictoryPointByRoomLevel';
 import { PrismaService } from 'src/prisma.service';
 
 @WebSocketGateway()
@@ -175,6 +175,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const dbRoom = await this.prismaService.room.findUnique({
         where: { id: roomToNumber },
       });
+      const victoryPoint = getVictoryPointByRoomLevel(dbRoom.level);
 
       // só faz a lógica de marcar o ponto se o jogador que chamou o evento for oq está jogando
       if (dbRoom.playerReleasedToPlay === requestMakePointData.playerId) {
@@ -208,6 +209,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
           this.server.to(requestMakePointData.roomId).emit('markedPoint', {
             roomId: requestMakePointData.roomId,
+            victoryPoint,
             scores: [
               {
                 playerId: requestMakePointData.playerId,
@@ -221,7 +223,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           });
         } else {
           const updatedValue = dbScore.value + 1;
-          const winGame = updatedValue === 3;
+          const winGame = updatedValue === victoryPoint;
 
           // ganhou, vamos limpar a array score para não dar erro.
           if (winGame) {
@@ -240,6 +242,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
           this.server.to(requestMakePointData.roomId).emit('markedPoint', {
             roomId: requestMakePointData.roomId,
+            victoryPoint,
             scores: [
               {
                 playerId: requestMakePointData.playerId,

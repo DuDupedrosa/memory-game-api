@@ -35,6 +35,7 @@ model Room {
   matchRandomNumber      Int @default(0)
   playerReleasedToPlay   String?
   playerTwoIsReadyToPlay Boolean @default(false)
+  level                  Int @default(1)
 }
 
 model Score {

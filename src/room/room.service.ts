@@ -43,6 +43,7 @@ export class RoomService {
         password: hashPassword,
         ownerId: user.id,
         players: [ownerId],
+        level: createNewRoomDto.level,
       };
 
       const newRoom = await this.prismaService.room.create({ data });
