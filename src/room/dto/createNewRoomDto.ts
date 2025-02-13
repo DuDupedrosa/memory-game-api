@@ -1,8 +1,9 @@
-import { IsIn, IsInt, IsNotEmpty, IsString } from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class CreateNewRoomDto {
   @IsString()
   @IsNotEmpty()
+  @MinLength(3, { message: 'min_length_3' })
   password: string;
 
   @IsInt()
