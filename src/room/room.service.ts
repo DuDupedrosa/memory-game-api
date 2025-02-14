@@ -294,9 +294,20 @@ export class RoomService {
         orderBy: { createdAt: 'desc' },
         take: 3,
       });
-      const ids = rooms.map((room) => room.id);
 
-      return res.status(HttpStatus.OK).json({ content: ids });
+      let response:
+        | {
+            id: number;
+            level: number;
+          }[]
+        | [] = rooms.map((room) => {
+        return {
+          id: room.id,
+          level: room.level,
+        };
+      });
+
+      return res.status(HttpStatus.OK).json({ content: response });
     } catch (err) {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         message: `InternalServerErro|getRecentRoomsByUserIdAsync|Erro:${err}`,
