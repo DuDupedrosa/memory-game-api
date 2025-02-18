@@ -99,4 +99,16 @@ export class RoomController {
       requestWithUser.user.userId,
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('get-all')
+  async getAllRoomsByOwnerIdAsync(
+    @Res() response: Response,
+    @Req() requestWithUser: RequestWithUser,
+  ) {
+    return await this.roomService.getAllRoomsByOwnerId(
+      response,
+      requestWithUser.user.userId,
+    );
+  }
 }

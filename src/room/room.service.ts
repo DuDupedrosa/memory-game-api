@@ -8,6 +8,7 @@ import { RoomDataType } from 'src/types/room';
 import { UserService } from 'src/user/user.service';
 import { UserDataType } from 'src/types/user';
 import { GameGateway } from 'src/game/game.gateway';
+import { EncryptionService } from 'src/common/encryption.service';
 
 @Injectable()
 export class RoomService {
@@ -16,6 +17,7 @@ export class RoomService {
     private prismaService: PrismaService,
     private userService: UserService,
     private gameGateway: GameGateway,
+    private encryptionService: EncryptionService,
   ) {}
 
   async createNewAsync(
@@ -34,9 +36,8 @@ export class RoomService {
           .json({ message: 'not_found_user' });
       }
 
-      const hashPassword = await bcrypt.hash(
+      const hashPassword = this.encryptionService.encrypt(
         createNewRoomDto.password,
-        this.saltRounds,
       );
 
       let data = {
@@ -113,7 +114,13 @@ export class RoomService {
             guestId: userId,
             players: players,
             playerTwoIsReadyToPlay: false,
+            lastAccess: new Date(),
           },
+        });
+      } else {
+        await this.prismaService.room.update({
+          where: { id: room.id },
+          data: { lastAccess: new Date() },
         });
       }
 
@@ -311,6 +318,50 @@ export class RoomService {
     } catch (err) {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         message: `InternalServerErro|getRecentRoomsByUserIdAsync|Erro:${err}`,
+      });
+    }
+  }
+
+  async getAllRoomsByOwnerId(res: Response, ownerId: string) {
+    try {
+      const user = await this.prismaService.user.findUnique({
+        where: { id: ownerId },
+      });
+
+      if (!user) {
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'not_found_user' });
+      }
+
+      const rooms = await this.prismaService.room.findMany({
+        where: { ownerId },
+        orderBy: { id: 'asc' },
+      });
+
+      let response: {
+        id: number;
+        createdAt: Date;
+        lastAccess: Date;
+        password: string;
+        level: number;
+      }[] =
+        rooms.length > 0
+          ? rooms.map((room) => {
+              return {
+                id: room.id,
+                createdAt: room.createdAt,
+                lastAccess: room.lastAccess,
+                password: this.encryptionService.decrypt(room.password),
+                level: room.level,
+              };
+            })
+          : [];
+
+      return res.status(HttpStatus.OK).json({ content: response });
+    } catch (err) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: `InternalServerErro|getAllRoomsByOwnerId|Erro:${err}`,
       });
     }
   }

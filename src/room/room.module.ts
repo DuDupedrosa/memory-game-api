@@ -6,10 +6,17 @@ import { PrismaService } from 'src/prisma.service';
 import { AuthService } from 'src/auth/auth.service';
 import { UserService } from 'src/user/user.service';
 import { GameModule } from 'src/game/game.module';
+import { EncryptionService } from 'src/common/encryption.service';
 
 @Module({
   imports: [AuthModule, GameModule],
   controllers: [RoomController],
-  providers: [RoomService, PrismaService, AuthService, UserService],
+  providers: [
+    RoomService,
+    PrismaService,
+    AuthService,
+    UserService,
+    EncryptionService,
+  ],
 })
 export class RoomModule {}
