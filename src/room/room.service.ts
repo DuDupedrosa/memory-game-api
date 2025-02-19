@@ -294,7 +294,7 @@ export class RoomService {
     }
   }
 
-  async getRecentRoomsIdByOwnerIdAsync(res: Response, ownerId: string) {
+  async getRecentRoomsByOwnerIdAsync(res: Response, ownerId: string) {
     try {
       const user = await this.prismaService.user.findUnique({
         where: { id: ownerId },
@@ -308,7 +308,7 @@ export class RoomService {
 
       const rooms = await this.prismaService.room.findMany({
         where: { ownerId: ownerId },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { lastAccess: 'desc' },
         take: 3,
       });
 

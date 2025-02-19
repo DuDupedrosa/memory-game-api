@@ -93,11 +93,11 @@ export class RoomController {
 
   @UseGuards(JwtAuthGuard)
   @Get('owner-access-recent')
-  async getRecentRoomsIdByOwnerId(
+  async getRecentRoomsByOwnerId(
     @Res() response: Response,
     @Req() requestWithUser: RequestWithUser,
   ) {
-    return await this.roomService.getRecentRoomsIdByOwnerIdAsync(
+    return await this.roomService.getRecentRoomsByOwnerIdAsync(
       response,
       requestWithUser.user.userId,
     );
