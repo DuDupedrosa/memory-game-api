@@ -3,17 +3,17 @@ import { Response } from 'express';
 import { CreateUserDto } from './dto/createUserDto';
 import { PrismaService } from 'src/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
-import * as bcrypt from 'bcrypt';
 import { SignInUserDto } from './dto/signInUserDto';
 import { UserDataType, UserType } from 'src/types/user';
 import { AuthService } from 'src/auth/auth.service';
+import { EncryptionService } from 'src/common/encryption.service';
 
 @Injectable()
 export class UserService {
-  private readonly saltRounds = 10;
   constructor(
     private prismaService: PrismaService,
     private authService: AuthService,
+    private encryptionService: EncryptionService,
   ) {}
 
   async createNewAsync(res: Response, newUserDto: CreateUserDto) {
@@ -38,7 +38,7 @@ export class UserService {
       }
 
       let data = { id: uuidv4(), ...newUserDto };
-      data.password = await bcrypt.hash(newUserDto.password, this.saltRounds);
+      data.password = this.encryptionService.encrypt(data.password);
 
       const createdUser = await this.prismaService.user.create({ data });
 
@@ -75,7 +75,7 @@ export class UserService {
           .json({ message: 'not_found_user_by_email' });
       }
 
-      const matchPassword = await bcrypt.compare(
+      const matchPassword = this.encryptionService.compare(
         signInUserDto.password,
         user.password,
       );

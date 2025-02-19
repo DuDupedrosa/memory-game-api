@@ -39,4 +39,13 @@ export class EncryptionService {
 
     return decrypted;
   }
+
+  compare(plainText: string, encryptedText: string): boolean {
+    try {
+      const decryptedText = this.decrypt(encryptedText);
+      return plainText === decryptedText;
+    } catch {
+      return false;
+    }
+  }
 }

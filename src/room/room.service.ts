@@ -2,7 +2,6 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { Response } from 'express';
 import { PrismaService } from 'src/prisma.service';
 import { CreateNewRoomDto } from './dto/createNewRoomDto';
-import * as bcrypt from 'bcrypt';
 import { SignInRoomDto } from './dto/signInRoomDto';
 import { RoomDataType } from 'src/types/room';
 import { UserService } from 'src/user/user.service';
@@ -14,7 +13,6 @@ import { UpdateRoomLevelDto } from './dto/updateRoomLevelDto';
 
 @Injectable()
 export class RoomService {
-  private readonly saltRounds = 10;
   constructor(
     private prismaService: PrismaService,
     private userService: UserService,
@@ -36,6 +34,16 @@ export class RoomService {
         return res
           .status(HttpStatus.NOT_FOUND)
           .json({ message: 'not_found_user' });
+      }
+
+      const rooms = await this.prismaService.room.findMany({
+        where: { ownerId: user.id },
+      });
+
+      if (rooms.length === 3) {
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'limit_room_for_user' });
       }
 
       const encryptedPassword = this.encryptionService.encrypt(
@@ -87,7 +95,7 @@ export class RoomService {
           .json({ message: 'not_found_room' });
       }
 
-      const matchPassword = await bcrypt.compare(
+      const matchPassword = this.encryptionService.compare(
         singInDto.password,
         room.password,
       );
@@ -390,9 +398,7 @@ export class RoomService {
 
       await this.prismaService.room.delete({ where: { id: roomId } });
 
-      return res
-        .status(HttpStatus.OK)
-        .json({ content: 'room_deleted_success' });
+      return res.status(HttpStatus.OK).json({ content: null });
     } catch (err) {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         message: `InternalServerErro|deleteById|Erro:${err}`,
