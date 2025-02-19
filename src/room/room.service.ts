@@ -9,6 +9,8 @@ import { UserService } from 'src/user/user.service';
 import { UserDataType } from 'src/types/user';
 import { GameGateway } from 'src/game/game.gateway';
 import { EncryptionService } from 'src/common/encryption.service';
+import { UpdateRoomPasswordDto } from './dto/updateRoomPasswordDto';
+import { UpdateRoomLevelDto } from './dto/updateRoomLevelDto';
 
 @Injectable()
 export class RoomService {
@@ -36,12 +38,12 @@ export class RoomService {
           .json({ message: 'not_found_user' });
       }
 
-      const hashPassword = this.encryptionService.encrypt(
+      const encryptedPassword = this.encryptionService.encrypt(
         createNewRoomDto.password,
       );
 
       let data = {
-        password: hashPassword,
+        password: encryptedPassword,
         ownerId: user.id,
         players: [ownerId],
         level: createNewRoomDto.level,
@@ -322,7 +324,7 @@ export class RoomService {
     }
   }
 
-  async getAllRoomsByOwnerId(res: Response, ownerId: string) {
+  async getAllRoomsByOwnerIdAsync(res: Response, ownerId: string) {
     try {
       const user = await this.prismaService.user.findUnique({
         where: { id: ownerId },
@@ -362,6 +364,120 @@ export class RoomService {
     } catch (err) {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         message: `InternalServerErro|getAllRoomsByOwnerId|Erro:${err}`,
+      });
+    }
+  }
+
+  async deleteByIdAsync(res: Response, roomId: number) {
+    try {
+      const room = await this.prismaService.room.findUnique({
+        where: { id: roomId },
+      });
+
+      if (!room) {
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'not_found_room' });
+      }
+
+      const scores = await this.prismaService.score.findMany({
+        where: { roomId: room.id },
+      });
+
+      if (scores.length > 0) {
+        await this.prismaService.score.deleteMany({ where: { roomId } });
+      }
+
+      await this.prismaService.room.delete({ where: { id: roomId } });
+
+      return res
+        .status(HttpStatus.OK)
+        .json({ content: 'room_deleted_success' });
+    } catch (err) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: `InternalServerErro|deleteById|Erro:${err}`,
+      });
+    }
+  }
+
+  async updatePasswordAsync(
+    res: Response,
+    dto: UpdateRoomPasswordDto,
+    userId: string,
+  ) {
+    try {
+      const room = await this.prismaService.room.findUnique({
+        where: { id: dto.id },
+      });
+
+      if (!room) {
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'not_found_room' });
+      }
+
+      // somente o dono da sala pode editar.
+      if (!room.ownerId || room.ownerId !== userId) {
+        return res
+          .status(HttpStatus.UNAUTHORIZED)
+          .json({ message: 'user_not_room_owner' });
+      }
+
+      const encryptedPassword = this.encryptionService.encrypt(dto.newPassword);
+
+      await this.prismaService.room.update({
+        where: { id: dto.id },
+        data: {
+          password: encryptedPassword,
+        },
+      });
+
+      return res
+        .status(HttpStatus.OK)
+        .json({ content: 'room_password_changed_success' });
+    } catch (err) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: `InternalServerErro|updatePasswordAsync|Erro:${err}`,
+      });
+    }
+  }
+
+  async updateLevelAsync(
+    res: Response,
+    dto: UpdateRoomLevelDto,
+    userId: string,
+  ) {
+    try {
+      const room = await this.prismaService.room.findUnique({
+        where: { id: dto.id },
+      });
+
+      if (!room) {
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'not_found_room' });
+      }
+
+      // somente o dono da sala pode editar.
+      if (!room.ownerId || room.ownerId !== userId) {
+        return res
+          .status(HttpStatus.UNAUTHORIZED)
+          .json({ message: 'user_not_room_owner' });
+      }
+
+      await this.prismaService.room.update({
+        where: { id: room.id },
+        data: {
+          level: dto.level,
+        },
+      });
+
+      return res
+        .status(HttpStatus.OK)
+        .json({ message: 'room_level_changed_success' });
+    } catch (err) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: `InternalServerErro|updateLevelAsync|Erro:${err}`,
       });
     }
   }

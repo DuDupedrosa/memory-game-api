@@ -1,11 +1,10 @@
-import { IsIn, IsInt, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty } from 'class-validator';
 import { LevelEnum } from 'src/helpers/enum/levelEnum';
 
-export class CreateNewRoomDto {
-  @IsString()
+export class UpdateRoomLevelDto {
+  @IsInt()
   @IsNotEmpty()
-  @MinLength(3, { message: 'min_length_3' })
-  password: string;
+  id: number;
 
   @IsInt()
   @IsNotEmpty()

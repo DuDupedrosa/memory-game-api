@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -16,6 +17,8 @@ import { RequestWithUser } from 'src/types/request';
 import { SignInRoomDto } from './dto/signInRoomDto';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
 import { ChangedPlayerAllowedToPlayDto } from './dto/changedPlayerAllowedToPlayDto';
+import { UpdateRoomPasswordDto } from './dto/updateRoomPasswordDto';
+import { UpdateRoomLevelDto } from './dto/updateRoomLevelDto';
 
 @Controller('room')
 export class RoomController {
@@ -106,8 +109,42 @@ export class RoomController {
     @Res() response: Response,
     @Req() requestWithUser: RequestWithUser,
   ) {
-    return await this.roomService.getAllRoomsByOwnerId(
+    return await this.roomService.getAllRoomsByOwnerIdAsync(
       response,
+      requestWithUser.user.userId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async deleteById(@Res() response: Response, @Param('id') id: number) {
+    return await this.roomService.deleteByIdAsync(response, Number(id));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('change-password')
+  async updatePassword(
+    @Res() response: Response,
+    @Body() dto: UpdateRoomPasswordDto,
+    @Req() requestWithUser: RequestWithUser,
+  ) {
+    return await this.roomService.updatePasswordAsync(
+      response,
+      dto,
+      requestWithUser.user.userId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('change-level')
+  async updateLevel(
+    @Res() response: Response,
+    @Body() dto: UpdateRoomLevelDto,
+    @Req() requestWithUser: RequestWithUser,
+  ) {
+    return await this.roomService.updateLevelAsync(
+      response,
+      dto,
       requestWithUser.user.userId,
     );
   }
