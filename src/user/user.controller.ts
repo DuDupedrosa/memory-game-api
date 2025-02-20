@@ -2,7 +2,9 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
+  Put,
   Req,
   Res,
   UseGuards,
@@ -13,6 +15,8 @@ import { Response } from 'express';
 import { SignInUserDto } from './dto/signInUserDto';
 import { RequestWithUser } from 'src/types/request';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
+import { UpdateUserDto } from './dto/updateUserDto';
+import { ChangeUserPasswordDto } from './dto/changeuserPasswordDto';
 
 @Controller('user')
 export class UserController {
@@ -41,5 +45,33 @@ export class UserController {
     @Req() requestWithUser: RequestWithUser,
   ) {
     return this.userService.getDataAsync(response, requestWithUser.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put()
+  async updateUserProfile(
+    @Body() updateUserDto: UpdateUserDto,
+    @Res() response: Response,
+    @Req() requestWithUser: RequestWithUser,
+  ) {
+    return await this.userService.updateUserProfileAsync(
+      response,
+      updateUserDto,
+      requestWithUser.user.userId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('change-password')
+  async changePassword(
+    @Body() changeUserPasswordDto: ChangeUserPasswordDto,
+    @Res() response: Response,
+    @Req() requestWithUser: RequestWithUser,
+  ) {
+    return await this.userService.changePasswordAsync(
+      response,
+      changeUserPasswordDto,
+      requestWithUser.user.userId,
+    );
   }
 }
