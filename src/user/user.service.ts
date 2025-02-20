@@ -30,13 +30,13 @@ export class UserService {
       if (findUserByEmail) {
         return res
           .status(HttpStatus.BAD_REQUEST)
-          .json({ message: 'already_register_email' });
+          .json({ message: 'already_registered_email' });
       }
 
       if (findUserByNickName) {
         return res
           .status(HttpStatus.BAD_REQUEST)
-          .json({ message: 'already_register_nickName' });
+          .json({ message: 'already_registered_nickName' });
       }
 
       let data = { id: uuidv4(), ...newUserDto };
