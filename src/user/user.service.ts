@@ -8,7 +8,7 @@ import { UserDataType, UserType } from 'src/types/user';
 import { AuthService } from 'src/auth/auth.service';
 import { EncryptionService } from 'src/common/encryption.service';
 import { UpdateUserDto } from './dto/updateUserDto';
-import { ChangeUserPasswordDto } from './dto/changeuserPasswordDto';
+import { ChangeUserPasswordDto } from './dto/changeUserPasswordDto';
 
 @Injectable()
 export class UserService {

@@ -16,7 +16,7 @@ import { SignInUserDto } from './dto/signInUserDto';
 import { RequestWithUser } from 'src/types/request';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
 import { UpdateUserDto } from './dto/updateUserDto';
-import { ChangeUserPasswordDto } from './dto/changeuserPasswordDto';
+import { ChangeUserPasswordDto } from './dto/changeUserPasswordDto';
 
 @Controller('user')
 export class UserController {
