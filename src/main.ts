@@ -5,6 +5,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const port = process.env.PORT || 3000;
 
   // Configuração de validação global
   app.useGlobalPipes(
@@ -27,7 +28,7 @@ async function bootstrap() {
   app.useWebSocketAdapter(new IoAdapter(app));
 
   // Inicia o servidor na porta 3000
-  await app.listen(3000, '0.0.0.0', () => {});
+  await app.listen(port, '0.0.0.0', () => {});
 }
 
 bootstrap();
