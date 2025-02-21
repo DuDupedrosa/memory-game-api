@@ -17,7 +17,7 @@ async function bootstrap() {
 
   // Configuração de CORS para a API REST
   app.enableCors({
-    origin: 'http://localhost:3001', // Permitir apenas esta origem
+    origin: 'https://memory-game-ten-coral.vercel.app', // Permitir apenas esta origem
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Métodos permitidos
     credentials: true, // Permitir envio de cookies e credenciais
     allowedHeaders: 'Content-Type, Authorization', // Cabeçalhos permitidos
