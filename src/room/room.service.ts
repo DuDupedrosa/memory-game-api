@@ -111,6 +111,13 @@ export class RoomService {
         id: room.id,
       };
 
+      // validação para a sala cheia
+      if (userId !== room.ownerId && room.players.length === 2) {
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'room_max_limit_users' });
+      }
+
       // coloco o visitante para ter acesso, caso não tenha nenhum visitante.
       // criar validação para quando a sala enxer! outro usuário tentando entrar
       // aqui que manda o acesso! só tem acesso a sala se tiver o id nessa coluna
