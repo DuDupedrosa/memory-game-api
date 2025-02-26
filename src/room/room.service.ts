@@ -3,13 +3,17 @@ import { Response } from 'express';
 import { PrismaService } from 'src/prisma.service';
 import { CreateNewRoomDto } from './dto/createNewRoomDto';
 import { SignInRoomDto } from './dto/signInRoomDto';
-import { RoomDataType } from 'src/types/room';
 import { UserService } from 'src/user/user.service';
-import { UserDataType } from 'src/types/user';
 import { GameGateway } from 'src/game/game.gateway';
 import { EncryptionService } from 'src/common/encryption.service';
 import { UpdateRoomPasswordDto } from './dto/updateRoomPasswordDto';
 import { UpdateRoomLevelDto } from './dto/updateRoomLevelDto';
+import { plainToInstance } from 'class-transformer';
+import { RoomDataDto } from './dto/roomDataDto';
+import { GetRoomUsersResponseDto } from './dto/getRoomUsersResponseDto';
+import { UserDataResponseDto } from 'src/common/dto/userDataResponseDto';
+import { GetRecenterRoomsByOwnerIdResponseDto } from './dto/getRecentRoomsByOwnerIdResponseDto';
+import { GetAllRoomsResponseDto } from './dto/getAllRoomsResponseDto';
 
 @Injectable()
 export class RoomService {
@@ -160,17 +164,19 @@ export class RoomService {
 
   async getByIdAsync(res: Response, roomId: number) {
     try {
-      const room = await this.prismaService.room.findUnique({
+      const dbRoom = await this.prismaService.room.findUnique({
         where: { id: roomId },
       });
 
-      if (!room) {
+      if (!dbRoom) {
         return res
           .status(HttpStatus.NOT_FOUND)
           .json({ message: 'not_found_room' });
       }
-      const { password, ...rest } = room;
-      let response: RoomDataType = { ...rest };
+
+      const response = plainToInstance(RoomDataDto, dbRoom, {
+        excludeExtraneousValues: true,
+      });
 
       return res.status(HttpStatus.OK).json({ content: response });
     } catch (err) {
@@ -201,10 +207,12 @@ export class RoomService {
       // Assuming room.players is an array of user IDs
       const users = await this.userService.getUsersByListIds(room.players);
 
-      let response: { roomId: number; users: UserDataType[] } = {
-        roomId,
-        users,
-      };
+      const response = plainToInstance(GetRoomUsersResponseDto, {
+        roomId: room.id,
+        users: plainToInstance(UserDataResponseDto, users, {
+          excludeExtraneousValues: true,
+        }),
+      });
 
       return res.status(HttpStatus.OK).json({ content: response });
     } catch (err) {
@@ -237,7 +245,7 @@ export class RoomService {
       if (!user) {
         return res
           .status(HttpStatus.NOT_FOUND)
-          .json({ message: 'user_found_room' });
+          .json({ message: 'not_found_user' });
       }
 
       let response: { playerIsAllowed: boolean } = {
@@ -319,17 +327,13 @@ export class RoomService {
         take: 3,
       });
 
-      let response:
-        | {
-            id: number;
-            level: number;
-          }[]
-        | [] = rooms.map((room) => {
-        return {
-          id: room.id,
-          level: room.level,
-        };
-      });
+      const response = plainToInstance(
+        GetRecenterRoomsByOwnerIdResponseDto,
+        rooms,
+        {
+          excludeExtraneousValues: true, // Garante que só os campos da classe são retornados
+        },
+      );
 
       return res.status(HttpStatus.OK).json({ content: response });
     } catch (err) {
@@ -356,24 +360,16 @@ export class RoomService {
         orderBy: { id: 'asc' },
       });
 
-      let response: {
-        id: number;
-        createdAt: Date;
-        lastAccess: Date;
-        password: string;
-        level: number;
-      }[] =
-        rooms.length > 0
-          ? rooms.map((room) => {
-              return {
-                id: room.id,
-                createdAt: room.createdAt,
-                lastAccess: room.lastAccess,
-                password: this.encryptionService.decrypt(room.password),
-                level: room.level,
-              };
-            })
-          : [];
+      let response = plainToInstance(GetAllRoomsResponseDto, rooms, {
+        excludeExtraneousValues: true,
+      });
+
+      if (response.length > 0) {
+        response = response.map((room) => ({
+          ...room,
+          password: this.encryptionService.decrypt(room.password),
+        }));
+      }
 
       return res.status(HttpStatus.OK).json({ content: response });
     } catch (err) {
@@ -487,7 +483,7 @@ export class RoomService {
 
       return res
         .status(HttpStatus.OK)
-        .json({ message: 'room_level_changed_success' });
+        .json({ content: 'room_level_changed_success' });
     } catch (err) {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         message: `InternalServerErro|updateLevelAsync|Erro:${err}`,

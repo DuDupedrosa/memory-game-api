@@ -2,10 +2,22 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const port = process.env.PORT || 3000;
+
+  // Configuração do Swagger
+  const config = new DocumentBuilder()
+    .setTitle('Memory Game API')
+    .setDescription('API do jogo de memória 1v1')
+    .setVersion('1.0')
+    .addBearerAuth() // Caso use autenticação JWT
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document);
 
   // Configuração de validação global
   app.useGlobalPipes(
@@ -18,7 +30,7 @@ async function bootstrap() {
 
   // Configuração de CORS para a API REST
   app.enableCors({
-    origin: 'https://memory-game-ten-coral.vercel.app', // Permitir apenas esta origem
+    origin: 'http://localhost:3001', // Permitir apenas esta origem
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Métodos permitidos
     credentials: true, // Permitir envio de cookies e credenciais
     allowedHeaders: 'Content-Type, Authorization', // Cabeçalhos permitidos

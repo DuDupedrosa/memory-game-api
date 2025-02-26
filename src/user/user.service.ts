@@ -4,11 +4,14 @@ import { CreateUserDto } from './dto/createUserDto';
 import { PrismaService } from 'src/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
 import { SignInUserDto } from './dto/signInUserDto';
-import { UserDataType, UserType } from 'src/types/user';
+import { UserDataType } from 'src/types/user';
 import { AuthService } from 'src/auth/auth.service';
 import { EncryptionService } from 'src/common/encryption.service';
 import { UpdateUserDto } from './dto/updateUserDto';
 import { ChangeUserPasswordDto } from './dto/changeUserPasswordDto';
+import { plainToInstance } from 'class-transformer';
+import { UserDataResponseDto } from 'src/common/dto/userDataResponseDto';
+import { UserWithTokenResponseDto } from './dto/userWithTokenResponseDto';
 
 @Injectable()
 export class UserService {
@@ -44,18 +47,18 @@ export class UserService {
 
       const createdUser = await this.prismaService.user.create({ data });
 
-      const token = await this.authService.login({
+      const generateToken = await this.authService.login({
         username: createdUser.nickName,
         userId: createdUser.id,
         email: createdUser.email,
       });
 
-      let { password, ...userData }: UserType = createdUser;
-
-      let response: { user: UserDataType; token: string } = {
-        user: userData,
-        token: token.access_token,
-      };
+      const response = plainToInstance(UserWithTokenResponseDto, {
+        token: generateToken.access_token,
+        user: plainToInstance(UserDataResponseDto, createdUser, {
+          excludeExtraneousValues: true,
+        }),
+      });
 
       return res.status(HttpStatus.CREATED).json({ content: response });
     } catch (err) {
@@ -67,11 +70,11 @@ export class UserService {
 
   async signInUserAsync(res: Response, signInUserDto: SignInUserDto) {
     try {
-      const user = await this.prismaService.user.findUnique({
+      const dbUser = await this.prismaService.user.findUnique({
         where: { email: signInUserDto.email },
       });
 
-      if (!user) {
+      if (!dbUser) {
         return res
           .status(HttpStatus.NOT_FOUND)
           .json({ message: 'not_found_user_by_email' });
@@ -79,7 +82,7 @@ export class UserService {
 
       const matchPassword = this.encryptionService.compare(
         signInUserDto.password,
-        user.password,
+        dbUser.password,
       );
 
       if (!matchPassword) {
@@ -88,23 +91,23 @@ export class UserService {
           .json({ message: 'invalid_password' });
       }
 
-      const token = await this.authService.login({
-        username: user.nickName,
-        userId: user.id,
-        email: user.email,
+      const generateToken = await this.authService.login({
+        username: dbUser.nickName,
+        userId: dbUser.id,
+        email: dbUser.email,
       });
 
-      let { password, ...userData }: UserType = user;
-
       await this.prismaService.user.update({
-        where: { id: user.id },
+        where: { id: dbUser.id },
         data: { lastLogin: new Date() },
       });
 
-      let response: { user: UserDataType; token: string } = {
-        user: userData,
-        token: token.access_token,
-      };
+      const response = plainToInstance(UserWithTokenResponseDto, {
+        token: generateToken.access_token,
+        user: plainToInstance(UserDataResponseDto, dbUser, {
+          excludeExtraneousValues: true,
+        }),
+      });
 
       return res.status(HttpStatus.OK).json({ content: response });
     } catch (err) {
@@ -126,9 +129,9 @@ export class UserService {
           .json({ message: 'not_found_user' });
       }
 
-      let { password, ...userData }: UserType = user;
-
-      let response: UserDataType = userData;
+      const response = plainToInstance(UserDataResponseDto, user, {
+        excludeExtraneousValues: true,
+      });
 
       return res.status(HttpStatus.OK).json({ content: response });
     } catch (err) {
@@ -196,9 +199,9 @@ export class UserService {
         },
       });
 
-      let { password, ...userData }: UserType = updatedUser;
-
-      let response: UserDataType = { ...userData };
+      const response = plainToInstance(UserDataResponseDto, updatedUser, {
+        excludeExtraneousValues: true,
+      });
 
       return res.status(HttpStatus.OK).json({ content: response });
     } catch (err) {
